@@ -1,3 +1,3 @@
-module github.com/qpixz/exchange-smtp
+module github.com/demen1n/exchange-smtp
 
-go 1.19
+go 1.23

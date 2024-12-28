@@ -1,0 +1,130 @@
+package exchangesmtp
+
+import (
+	"bytes"
+	"encoding/base64"
+	"errors"
+	"fmt"
+	"mime/quotedprintable"
+	"os"
+)
+
+type MailType int
+
+const (
+	plaintText MailType = iota
+	HTML
+)
+
+var mailTypeNames = [...]string{"text/plain", "text/html"}
+
+func (mt MailType) String() string {
+	return mailTypeNames[mt]
+}
+
+const charset = "UTF-8"
+
+// Mail is a struct for two types of email: plain text and html like.
+type Mail struct {
+	MT MailType
+
+	From        string
+	To          []string
+	Subject     string
+	Body        string
+	contentType string
+
+	AttachmentFile []struct {
+		Name        string
+		ContentType string
+		Body        []byte
+	}
+}
+
+func (m *Mail) ToBytes() ([]byte, error) {
+	msg := bytes.NewBuffer(nil)
+
+	if len(m.To) == 0 {
+		return nil, errors.New("recipient list is empty")
+	}
+
+	if len(m.Body) == 0 {
+		return nil, errors.New("email body is empty")
+	}
+
+	// write headers, skipp Cc, Bcc
+	msg.WriteString(fmt.Sprintf("From: %s\r\n", m.From))
+	msg.WriteString(fmt.Sprintf("To: %s\r\n", m.To))
+	msg.WriteString(fmt.Sprintf("Subject: %s\r\n", m.Subject))
+	msg.WriteString("MIME-Version: 1.0\r\n")
+
+	boundary := "exchange-smtp"
+	if len(m.AttachmentFile) > 0 {
+		msg.WriteString(fmt.Sprintf("Content-Type: multipart/mixed; boundary=%s\r\n\r\n", boundary))
+		msg.WriteString(fmt.Sprintf("--%s\r\n", boundary))
+	}
+
+	// write body
+	msg.WriteString(fmt.Sprintf("Content-Type: %s; charset=%s\r\n", m.MT.String(), charset))
+	msg.WriteString("Content-Transfer-Encoding: quoted-printable\r\n\r\n")
+
+	qp := quotedprintable.NewWriter(msg)
+	_, err := qp.Write([]byte(m.Body))
+	if err != nil {
+		return nil, err
+	}
+	err = qp.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	// add attachments
+	if len(m.AttachmentFile) > 0 {
+		for _, file := range m.AttachmentFile {
+			msg.WriteString(fmt.Sprintf("\r\n--%s\r\n", boundary))
+			msg.WriteString(fmt.Sprintf("Content-Type: application/octet-stream; name=\"%s\"\r\n", file.Name))
+			msg.WriteString(fmt.Sprintf("Content-Transfer-Encoding: base64\r\n"))
+			msg.WriteString(fmt.Sprintf("Content-Disposition: attachment; filename=\"%s\"\r\n", file.Name))
+
+			if len(file.Body) > 0 {
+				if err := m.writeBytes(msg, file.Body); err != nil {
+					return nil, err
+				}
+			} else {
+				if err := m.writeFile(msg, file.Name); err != nil {
+					return nil, err
+				}
+			}
+		}
+		msg.WriteString(fmt.Sprintf("\r\n--%s--\r\n", boundary))
+	}
+
+	return msg.Bytes(), nil
+}
+
+func (m *Mail) writeBytes(msg *bytes.Buffer, file []byte) error {
+	payload := make([]byte, base64.StdEncoding.EncodedLen(len(file)))
+	base64.StdEncoding.Encode(payload, file)
+	msg.WriteString("\r\n")
+	for index, line := 0, len(payload); index < line; index++ {
+		msg.WriteByte(payload[index])
+		if (index+1)%76 == 0 {
+			msg.WriteString("\r\n")
+		}
+	}
+
+	return nil
+}
+
+func (m *Mail) writeFile(msg *bytes.Buffer, fileName string) error {
+	file, err := os.ReadFile(fileName)
+	if err != nil {
+		return err
+	}
+
+	if err = m.writeBytes(msg, file); err != nil {
+		return err
+	}
+
+	return nil
+}
