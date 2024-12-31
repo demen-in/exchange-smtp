@@ -23,14 +23,14 @@ func (ms *MailSender) sendHTML(mail Mail) error {
 	return nil
 }
 
-// SendToList is send simple plain text email to list recipients.
-func (m *MailSender) SendToList(mail Mail) error {
+// Send is send simple plain text email to list recipients.
+func (ms *MailSender) Send(mail Mail) error {
 	b, err := mail.ToBytes()
 	if err != nil {
 		return err
 	}
 
-	if err := smtp.SendMail(m.server, m.auth, mail.From, mail.To, b); err != nil {
+	if err := smtp.SendMail(ms.server, ms.auth, mail.From, mail.To, b); err != nil {
 		return err
 	}
 
