@@ -15,14 +15,6 @@ func NewMailSender(username, password, server string) *MailSender {
 	return &MailSender{LoginAuth(username, password), server}
 }
 
-func (ms *MailSender) sendPlain(mail Mail) error {
-	return nil
-}
-
-func (ms *MailSender) sendHTML(mail Mail) error {
-	return nil
-}
-
 // Send is send simple plain text email to list recipients.
 func (ms *MailSender) Send(mail Mail) error {
 	b, err := mail.ToBytes()
