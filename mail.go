@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"mime"
 	"mime/quotedprintable"
 	"os"
 )
@@ -55,7 +56,8 @@ func (m *Mail) ToBytes() ([]byte, error) {
 	// write headers, skipp Cc, Bcc
 	msg.WriteString(fmt.Sprintf("From: %s\r\n", m.From))
 	msg.WriteString(fmt.Sprintf("To: %s\r\n", m.To))
-	msg.WriteString(fmt.Sprintf("Subject: %s\r\n", m.Subject))
+	sbj := mime.QEncoding.Encode("utf-8", m.Subject)
+	msg.WriteString(fmt.Sprintf("Subject: %s\r\n", sbj))
 	msg.WriteString("MIME-Version: 1.0\r\n")
 
 	boundary := "exchange-smtp"
