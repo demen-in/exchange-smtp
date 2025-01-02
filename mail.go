@@ -35,11 +35,13 @@ type Mail struct {
 	Body        string
 	contentType string
 
-	AttachmentFile []struct {
-		Name        string
-		ContentType string
-		Body        []byte
-	}
+	Attachment []AttachmentFile
+}
+
+type AttachmentFile struct {
+	Name        string
+	ContentType string
+	Body        []byte
 }
 
 func (m *Mail) ToBytes() ([]byte, error) {
@@ -61,7 +63,7 @@ func (m *Mail) ToBytes() ([]byte, error) {
 	msg.WriteString("MIME-Version: 1.0\r\n")
 
 	boundary := "exchange-smtp"
-	if len(m.AttachmentFile) > 0 {
+	if len(m.Attachment) > 0 {
 		msg.WriteString(fmt.Sprintf("Content-Type: multipart/mixed; boundary=%s\r\n\r\n", boundary))
 		msg.WriteString(fmt.Sprintf("--%s\r\n", boundary))
 	}
@@ -81,8 +83,8 @@ func (m *Mail) ToBytes() ([]byte, error) {
 	}
 
 	// add attachments
-	if len(m.AttachmentFile) > 0 {
-		for _, file := range m.AttachmentFile {
+	if len(m.Attachment) > 0 {
+		for _, file := range m.Attachment {
 			msg.WriteString(fmt.Sprintf("\r\n--%s\r\n", boundary))
 			msg.WriteString(fmt.Sprintf("Content-Type: application/octet-stream; name=\"%s\"\r\n", file.Name))
 			msg.WriteString(fmt.Sprintf("Content-Transfer-Encoding: base64\r\n"))
