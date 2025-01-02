@@ -6,7 +6,7 @@ type QuickSender struct {
 	to   []string
 }
 
-func NewQucikSender(user, password, server, from string, to []string) *QuickSender {
+func NewQuickSender(user, password, server, from string, to []string) *QuickSender {
 	return &QuickSender{
 		ms:   NewMailSender(user, password, server),
 		from: from,
@@ -15,10 +15,11 @@ func NewQucikSender(user, password, server, from string, to []string) *QuickSend
 }
 func (qs *QuickSender) Send(subject, body string) error {
 	m := Mail{
+		MT:      plaintText,
 		From:    qs.from,
 		To:      qs.to,
 		Subject: subject,
 		Body:    body,
 	}
-	return qs.ms.SendToList(m)
+	return qs.ms.Send(m)
 }
